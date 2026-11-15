@@ -19,6 +19,7 @@ export default function Home() {
   const [totalHadir, setTotalHadir] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [countPopping, setCountPopping] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -59,6 +60,8 @@ export default function Home() {
         { event: "INSERT", schema: "public", table: "absensi" },
         () => {
           setTotalHadir((prev) => prev + 1);
+          setCountPopping(true);
+          setTimeout(() => setCountPopping(false), 500);
         }
       )
       .subscribe();
@@ -90,7 +93,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-indigo-900 selection:text-white">
       {/* Toast Notification */}
       {copiedId && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 animate-slide-up border border-slate-800">
           <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
@@ -103,8 +106,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-indigo-900 flex items-center justify-center text-white font-bold">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-lg bg-indigo-900 flex items-center justify-center text-white font-bold transition-transform group-hover:scale-105">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -123,7 +126,7 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <Link
                 href="/proyektor"
-                className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg border border-slate-200 transition-colors"
+                className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg border border-slate-200 btn-interactive"
               >
                 <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -133,14 +136,14 @@ export default function Home() {
 
               <Link
                 href="/absensi"
-                className="hidden sm:inline-flex items-center text-sm font-semibold text-indigo-900 hover:text-indigo-700 px-3.5 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="hidden sm:inline-flex items-center text-sm font-semibold text-indigo-900 hover:text-indigo-700 px-3.5 py-2 rounded-lg hover:bg-slate-100 btn-interactive"
               >
                 Formulir Presensi
               </Link>
 
               <Link
                 href="/admin/login"
-                className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-lg transition-colors border border-slate-200"
+                className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-lg btn-interactive border border-slate-200"
               >
                 <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -155,8 +158,8 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="pt-12 pb-14 sm:pt-16 sm:pb-20 border-b border-slate-200 bg-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <section className="pt-12 pb-14 sm:pt-16 sm:pb-20 border-b border-slate-200 bg-white overflow-hidden">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center animate-fade-in-up">
             {/* Headline */}
             <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
               Sistem Presensi Digital Kegiatan Kampus
@@ -170,14 +173,14 @@ export default function Home() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
               <Link
                 href="/absensi"
-                className="w-full sm:w-auto inline-flex items-center justify-center bg-indigo-900 hover:bg-indigo-800 text-white font-semibold px-6 py-3 rounded-lg shadow-sm text-sm transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-indigo-900 hover:bg-indigo-800 text-white font-semibold px-6 py-3 rounded-lg shadow-sm text-sm btn-interactive"
               >
                 Isi Presensi Kehadiran
               </Link>
 
               <a
                 href="#daftar-kegiatan"
-                className="w-full sm:w-auto inline-flex items-center justify-center bg-white hover:bg-slate-50 text-slate-700 font-semibold px-5 py-3 rounded-lg border border-slate-300 text-sm transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-white hover:bg-slate-50 text-slate-700 font-semibold px-5 py-3 rounded-lg border border-slate-300 text-sm btn-interactive"
               >
                 Lihat Agenda Hari Ini
               </a>
@@ -185,15 +188,21 @@ export default function Home() {
 
             {/* Factual Realtime Status Bar */}
             <div className="mt-10 pt-6 border-t border-slate-200 max-w-md mx-auto grid grid-cols-2 gap-4 text-center">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg card-interactive">
                 <span className="text-xs text-slate-500 block font-medium">Agenda Aktif</span>
                 <span className="text-xl font-bold text-slate-900">
                   {loading ? "..." : events.length} Kegiatan
                 </span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-xs text-slate-500 block font-medium">Kehadiran Tercatat (Live)</span>
-                <span className="text-xl font-bold text-indigo-900">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg card-interactive">
+                <span className="text-xs text-slate-500 block font-medium flex items-center justify-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Kehadiran Tercatat (Live)
+                </span>
+                <span className={`text-xl font-bold text-indigo-900 inline-block ${countPopping ? "animate-count-pop" : ""}`}>
                   {loading ? "..." : `${totalHadir} Peserta`}
                 </span>
               </div>
@@ -264,14 +273,15 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredEvents.map((ev) => (
+              {filteredEvents.map((ev, idx) => (
                 <div
                   key={ev.id}
-                  className="bg-white rounded-lg border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:border-indigo-900/40 hover:shadow-md transition-all"
+                  className={`bg-white rounded-lg border border-slate-200 p-6 flex flex-col justify-between shadow-sm card-interactive hover:border-indigo-900/40 hover:shadow-md animate-fade-in-up stagger-${Math.min((idx % 6) + 1, 6)}`}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                         Presensi Terbuka
                       </span>
                       <span className="text-xs text-slate-500">
@@ -307,7 +317,7 @@ export default function Home() {
                   <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
                     <Link
                       href={`/absensi?kegiatan_id=${ev.id}`}
-                      className="flex-1 text-center text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-900 text-white hover:bg-indigo-800 transition-colors"
+                      className="flex-1 text-center text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-900 text-white hover:bg-indigo-800 btn-interactive"
                     >
                       Buka Form Presensi
                     </Link>
@@ -317,7 +327,7 @@ export default function Home() {
                       onClick={() => copyEventLink(ev.id)}
                       title="Salin tautan langsung kegiatan"
                       aria-label={`Salin tautan langsung kegiatan ${ev.nama_kegiatan}`}
-                      className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                      className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 btn-interactive"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />

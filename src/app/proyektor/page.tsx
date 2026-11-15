@@ -37,6 +37,7 @@ function ProyektorContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState("");
+  const [countPopping, setCountPopping] = useState(false);
 
   const tickerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -132,6 +133,10 @@ function ProyektorContent() {
         (payload) => {
           const newPeserta = payload.new as Peserta;
           setPesertaList((prev) => [newPeserta, ...prev]);
+
+          // Trigger counter pop animation
+          setCountPopping(true);
+          setTimeout(() => setCountPopping(false), 500);
 
           // Show popup banner for newest attendee
           setLatestAttendee(newPeserta);
@@ -233,11 +238,14 @@ function ProyektorContent() {
       <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-col justify-center">
         {/* Banner Alert when new person checks in */}
         {latestAttendee && (
-          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 text-white shadow-2xl flex items-center justify-between animate-bounce">
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 text-white shadow-2xl flex items-center justify-between animate-slide-down border border-emerald-400/40">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🎉</span>
+              <span className="text-2xl animate-scale-in">🎉</span>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-100">Presensi Baru Masuk!</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-100 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                  Presensi Baru Masuk!
+                </p>
                 <p className="text-base sm:text-lg font-extrabold">
                   {latestAttendee.nama} ({latestAttendee.prodi})
                 </p>
@@ -313,20 +321,21 @@ function ProyektorContent() {
                 Total Mahasiswa Hadir
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="text-6xl sm:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400">
+                <span className={`text-6xl sm:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 inline-block transition-transform ${countPopping ? "animate-count-pop" : ""}`}>
                   {pesertaList.length}
                 </span>
                 <span className="text-slate-400 font-semibold text-lg">Orang</span>
               </div>
 
-              {/* QR Container */}
-              <div className="mt-6 p-4 bg-white rounded-3xl shadow-xl border-4 border-indigo-400/30">
+              {/* QR Container with subtle scanning line animation */}
+              <div className="mt-6 p-4 bg-white rounded-3xl shadow-xl border-4 border-indigo-400/30 relative overflow-hidden group">
+                <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent pointer-events-none animate-scan-beam" />
                 {qrDataUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={qrDataUrl}
                     alt="QR Code Presensi"
-                    className="w-56 h-56 sm:w-64 sm:h-64 object-contain rounded-2xl"
+                    className="w-56 h-56 sm:w-64 sm:h-64 object-contain rounded-2xl relative z-10"
                   />
                 ) : (
                   <div className="w-56 h-56 flex items-center justify-center text-slate-400">

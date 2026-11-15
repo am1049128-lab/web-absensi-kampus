@@ -424,7 +424,7 @@ function AbsensiContent() {
           </div>
 
           {/* Digital E-Ticket Card */}
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden print-ticket">
+          <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden print-ticket animate-scale-in">
             {/* Header Badge */}
             <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 text-white p-6 relative overflow-hidden">
               <div className="flex items-center justify-between relative z-10">
@@ -544,7 +544,7 @@ function AbsensiContent() {
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden animate-fade-in-up">
           {/* Header Banner */}
           <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 text-white p-6 sm:p-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Form Kehadiran Acara</h1>
@@ -700,7 +700,7 @@ function AbsensiContent() {
                       key={s}
                       type="button"
                       onClick={() => setFormData({ ...formData, semester: s })}
-                      className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      className={`py-2.5 rounded-xl text-xs font-bold btn-interactive transition-all ${
                         formData.semester === s
                           ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20 scale-105"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 border border-slate-200/60"
@@ -781,7 +781,7 @@ function AbsensiContent() {
               <button
                 type="submit"
                 disabled={loading || kegiatanList.length === 0}
-                className="w-full gradient-btn text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all mt-4"
+                className="w-full gradient-btn text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed btn-interactive transition-all mt-4"
               >
                 {loading ? (
                   <>
