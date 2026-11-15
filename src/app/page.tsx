@@ -15,32 +15,89 @@ interface Kegiatan {
 
 export default function Home() {
   const [events, setEvents] = useState<Kegiatan[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [totalHadir, setTotalHadir] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadActiveEvents() {
+    async function loadData() {
       try {
-        const { data, error } = await supabase
+        // Fetch active events
+        const { data: eventData, error: eventErr } = await supabase
           .from("kegiatan")
           .select("*")
           .eq("is_active", true)
           .order("tanggal", { ascending: true });
 
-        if (!error && data) {
-          setEvents(data);
+        if (!eventErr && eventData) {
+          setEvents(eventData);
+        }
+
+        // Fetch total attendance count
+        const { count, error: countErr } = await supabase
+          .from("absensi")
+          .select("*", { count: "exact", head: true });
+
+        if (!countErr && count !== null) {
+          setTotalHadir(count);
         }
       } catch (err) {
-        console.error("Gagal mengambil data kegiatan:", err);
+        console.error("Gagal mengambil data:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    loadActiveEvents();
+    loadData();
+
+    // Setup realtime listener for new attendees on homepage
+    const channel = supabase
+      .channel("homepage-presence-counter")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "absensi" },
+        () => {
+          setTotalHadir((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
+  function copyEventLink(id: string) {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/absensi?kegiatan_id=${id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  // Filtered events
+  const filteredEvents = events.filter((ev) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      ev.nama_kegiatan.toLowerCase().includes(q) ||
+      (ev.lokasi && ev.lokasi.toLowerCase().includes(q)) ||
+      (ev.deskripsi && ev.deskripsi.toLowerCase().includes(q))
+    );
+  });
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-indigo-900 selection:text-white">
+      {/* Toast Notification */}
+      {copiedId && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 animate-bounce">
+          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Tautan formulir kegiatan berhasil disalin!</span>
+        </div>
+      )}
+
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -64,6 +121,16 @@ export default function Home() {
 
             {/* Nav actions */}
             <div className="flex items-center gap-3">
+              <Link
+                href="/proyektor"
+                className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg border border-slate-200 transition-colors"
+              >
+                <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>Layar Proyektor</span>
+              </Link>
+
               <Link
                 href="/absensi"
                 className="hidden sm:inline-flex items-center text-sm font-semibold text-indigo-900 hover:text-indigo-700 px-3.5 py-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -116,22 +183,27 @@ export default function Home() {
               </a>
             </div>
 
-            {/* Factual Status */}
-            <div className="mt-10 pt-6 border-t border-slate-200 max-w-sm mx-auto flex items-center justify-center gap-6 text-xs text-slate-500">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>Database Terhubung</span>
+            {/* Factual Realtime Status Bar */}
+            <div className="mt-10 pt-6 border-t border-slate-200 max-w-md mx-auto grid grid-cols-2 gap-4 text-center">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-xs text-slate-500 block font-medium">Agenda Aktif</span>
+                <span className="text-xl font-bold text-slate-900">
+                  {loading ? "..." : events.length} Kegiatan
+                </span>
               </div>
-              <div className="border-l border-slate-200 pl-6">
-                <span>{loading ? "Memuat agenda..." : `${events.length} Kegiatan Aktif Terbuka`}</span>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-xs text-slate-500 block font-medium">Kehadiran Tercatat (Live)</span>
+                <span className="text-xl font-bold text-indigo-900">
+                  {loading ? "..." : `${totalHadir} Peserta`}
+                </span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Section: Active Events List */}
+        {/* Section: Active Events List with Interactive Live Search */}
         <section id="daftar-kegiatan" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-3">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
                 Kegiatan yang Sedang Dibuka
@@ -141,39 +213,61 @@ export default function Home() {
               </p>
             </div>
 
-            <Link
-              href="/absensi"
-              className="text-xs sm:text-sm font-semibold text-indigo-900 hover:underline"
-            >
-              Buka Formulir Kosong
-            </Link>
+            {/* Interactive Search Bar */}
+            <div className="w-full md:w-80 relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama kegiatan atau lokasi..."
+                className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-900/20 focus:border-indigo-900 transition-all placeholder:text-slate-400"
+              />
+              <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Bersihkan pencarian"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold p-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {[1, 2, 3].map((n) => (
-                <div key={n} className="bg-slate-100 rounded-xl p-6 h-48 animate-pulse border border-slate-200" />
+                <div key={n} className="bg-slate-100 rounded-lg p-6 h-48 animate-pulse border border-slate-200" />
               ))}
             </div>
-          ) : events.length === 0 ? (
-            <div className="text-center py-12 px-4 rounded-xl border border-slate-200 bg-white">
-              <h3 className="text-sm font-bold text-slate-800">Belum Ada Kegiatan Aktif</h3>
+          ) : filteredEvents.length === 0 ? (
+            <div className="text-center py-12 px-4 rounded-lg border border-slate-200 bg-white">
+              <h3 className="text-sm font-bold text-slate-800">
+                {searchQuery ? `Tidak ada kegiatan yang sesuai dengan "${searchQuery}"` : "Belum Ada Kegiatan Aktif"}
+              </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Panitia pelaksana belum membuka sesi presensi untuk kegiatan saat ini.
+                {searchQuery ? "Silakan coba kata kunci lain atau bersihkan kotak pencarian." : "Panitia pelaksana belum membuka sesi presensi untuk kegiatan saat ini."}
               </p>
-              <Link
-                href="/admin/login"
-                className="mt-4 inline-flex items-center text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-900 text-white hover:bg-indigo-800 transition-colors"
-              >
-                Buka Portal Admin
-              </Link>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="mt-3 text-xs font-semibold text-indigo-900 hover:underline"
+                >
+                  Tampilkan Semua Kegiatan
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {events.map((ev) => (
+              {filteredEvents.map((ev) => (
                 <div
                   key={ev.id}
-                  className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:border-slate-300 transition-all"
+                  className="bg-white rounded-lg border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:border-indigo-900/40 hover:shadow-md transition-all"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3">
@@ -210,16 +304,25 @@ export default function Home() {
                     )}
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">
-                      Sesi Mahasiswa
-                    </span>
+                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
                     <Link
                       href={`/absensi?kegiatan_id=${ev.id}`}
-                      className="text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-900 text-white hover:bg-indigo-800 transition-colors"
+                      className="flex-1 text-center text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-900 text-white hover:bg-indigo-800 transition-colors"
                     >
                       Buka Form Presensi
                     </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => copyEventLink(ev.id)}
+                      title="Salin tautan langsung kegiatan"
+                      aria-label={`Salin tautan langsung kegiatan ${ev.nama_kegiatan}`}
+                      className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               ))}

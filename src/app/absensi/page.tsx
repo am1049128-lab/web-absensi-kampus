@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fireConfetti } from "@/lib/confetti";
 import Link from "next/link";
 
 interface Kegiatan {
@@ -347,6 +348,29 @@ function AbsensiContent() {
         signature: signatureData || undefined,
       });
 
+      // Interactive feedback: fire celebratory confetti & play gentle chime
+      fireConfetti();
+      try {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+            gain.gain.setValueAtTime(0.06, ctx.currentTime + i * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.08 + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.08);
+            osc.stop(ctx.currentTime + i * 0.08 + 0.5);
+          });
+        }
+      } catch {
+        // audio might be blocked by browser policy
+      }
+
       // Reset
       setFormData({
         nama: "",
@@ -585,43 +609,63 @@ function AbsensiContent() {
 
               {/* Field 2: Nama Lengkap */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  2. Nama Lengkap <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="input-nama" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    2. Nama Lengkap <span className="text-rose-500">*</span>
+                  </label>
+                  {formData.nama && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, nama: "" })}
+                      className="text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Bersihkan
+                    </button>
+                  )}
+                </div>
                 <input
+                  id="input-nama"
                   type="text"
                   value={formData.nama}
                   onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
                   placeholder="Contoh: Muhammad Rizky Pratama"
-                  className="w-full px-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
+                  className="w-full px-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-900/20 focus:border-indigo-900 transition-all placeholder:text-slate-400"
                   required
                 />
               </div>
 
               {/* Field 3: NIM */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  3. Nomor Induk Mahasiswa (NIM) <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="input-nim" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    3. Nomor Induk Mahasiswa (NIM) <span className="text-rose-500">*</span>
+                  </label>
+                  {formData.nim && (
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {formData.nim.length} karakter
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input
+                    id="input-nim"
                     type="text"
                     value={formData.nim}
                     onChange={(e) => setFormData({ ...formData, nim: e.target.value.replace(/\s+/g, "").toUpperCase() })}
                     placeholder="Contoh: 2110511099"
-                    className="w-full px-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-sm font-mono tracking-wide text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
+                    className="w-full px-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm font-mono tracking-wide text-slate-900 outline-none focus:ring-2 focus:ring-indigo-900/20 focus:border-indigo-900 transition-all placeholder:text-slate-400"
                     required
                   />
                   {formData.nim.length >= 5 && (
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600 flex items-center gap-1 text-xs font-semibold">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </span>
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1.5">
-                  Pastikan NIM sudah benar (1 NIM hanya dapat mengisi absen 1 kali per kegiatan).
+                  1 NIM hanya dapat mengisi absen 1 kali per kegiatan.
                 </p>
               </div>
 
