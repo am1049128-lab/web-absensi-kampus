@@ -3,21 +3,20 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-light: #eef2ff;
-  --secondary: #0284c7;
+  --primary: #1e1b4b;
+  --primary-hover: #312e81;
+  --primary-light: #e0e7ff;
+  --secondary: #0369a1;
   --secondary-light: #f0f9ff;
-  --success: #059669;
+  --success: #047857;
   --success-light: #ecfdf5;
-  --danger: #e11d48;
+  --danger: #be123c;
   --danger-light: #fff1f2;
-  --warning: #d97706;
+  --warning: #b45309;
   --warning-light: #fffbeb;
   --card: #ffffff;
   --border: #e2e8f0;
   --muted: #64748b;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0284c7 100%);
 }
 
 @theme inline {
@@ -48,68 +47,46 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ambient mesh background effect */
-.bg-mesh {
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.06) 0px, transparent 50%);
-  background-attachment: fixed;
+/* Accessible focus ring for all interactive elements (R-32, R-39) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #312e81;
+  outline-offset: 2px;
 }
 
-/* Glassmorphism Card */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+/* Interactive elements cursor affordance (R-39) */
+a,
+button,
+select {
+  cursor: pointer;
 }
 
-.glass-panel-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.glass-panel-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 36px -12px rgba(79, 70, 229, 0.12);
-  border-color: rgba(99, 102, 241, 0.3);
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
 }
 
-/* Gradient accents */
-.gradient-text {
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+/* Reduced motion preference (R-39) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-.gradient-btn {
-  background: var(--accent-gradient);
-  transition: all 0.2s ease;
-}
-.gradient-btn:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.35);
-}
-.gradient-btn:active {
-  transform: translateY(0);
-}
-
-/* Pulse animation for active live badges */
-@keyframes ping-subtle {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.4); opacity: 0.4; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.pulse-badge {
-  animation: ping-subtle 2s infinite ease-in-out;
-}
-
-/* Custom modern scrollbar */
+/* Clean Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -119,7 +96,7 @@ body {
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
@@ -137,7 +114,7 @@ body {
     display: block !important;
   }
   .print-ticket {
-    border: 1px solid #000 !important;
+    border: 1px solid #cbd5e1 !important;
     box-shadow: none !important;
     max-width: 100% !important;
     margin: 0 auto !important;

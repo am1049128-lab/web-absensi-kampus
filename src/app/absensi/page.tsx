@@ -400,7 +400,7 @@ function AbsensiContent() {
           </div>
 
           {/* Digital E-Ticket Card */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden print-ticket">
+          <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden print-ticket">
             {/* Header Badge */}
             <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 text-white p-6 relative overflow-hidden">
               <div className="flex items-center justify-between relative z-10">
@@ -520,7 +520,7 @@ function AbsensiContent() {
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden">
           {/* Header Banner */}
           <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 text-white p-6 sm:p-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Form Kehadiran Acara</h1>
@@ -561,7 +561,7 @@ function AbsensiContent() {
                     >
                       {kegiatanList.map((k) => (
                         <option key={k.id} value={k.id}>
-                          {k.nama_kegiatan} — ({new Date(k.tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "short" })})
+                          {k.nama_kegiatan} ({new Date(k.tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "short" })})
                         </option>
                       ))}
                     </select>
@@ -671,21 +671,50 @@ function AbsensiContent() {
               {/* Field 6: Digital Signature Pad */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <label htmlFor="signature-canvas" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                     6. Tanda Tangan Digital (Opsional)
                   </label>
-                  {hasDrawn && (
+                  <div className="flex items-center gap-2">
+                    {hasDrawn && (
+                      <button
+                        type="button"
+                        onClick={clearSignature}
+                        className="text-xs text-rose-600 hover:text-rose-800 font-semibold transition-colors"
+                      >
+                        Hapus
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={clearSignature}
-                      className="text-xs text-rose-600 hover:text-rose-800 font-semibold transition-colors"
+                      onClick={() => {
+                        if (!formData.nama.trim()) {
+                          setError("Masukkan nama lengkap terlebih dahulu.");
+                          return;
+                        }
+                        const canvas = canvasRef.current;
+                        if (!canvas) return;
+                        const ctx = canvas.getContext("2d");
+                        if (!ctx) return;
+                        clearSignature();
+                        ctx.fillStyle = "#1e1b4b";
+                        ctx.font = "italic bold 28px serif";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(formData.nama.trim(), canvas.width / 4, canvas.height / 4);
+                        setSignatureData(canvas.toDataURL("image/png"));
+                        setHasDrawn(true);
+                      }}
+                      className="text-xs text-indigo-700 hover:text-indigo-900 font-medium underline"
                     >
-                      Hapus / Ulangi
+                      Verifikasi dengan Nama (Keyboard)
                     </button>
-                  )}
+                  </div>
                 </div>
-                <div className="border-2 border-dashed border-slate-300 rounded-2xl p-2 bg-slate-50/50 relative overflow-hidden">
+                <div className="border-2 border-dashed border-slate-300 rounded-xl p-2 bg-slate-50/50 relative overflow-hidden">
                   <canvas
+                    id="signature-canvas"
+                    tabIndex={0}
+                    aria-label="Area kanvas tanda tangan digital"
                     ref={canvasRef}
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
@@ -694,11 +723,11 @@ function AbsensiContent() {
                     onTouchStart={startDrawing}
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
-                    className="w-full h-32 bg-white rounded-xl cursor-crosshair touch-none border border-slate-200"
+                    className="w-full h-32 bg-white rounded-lg cursor-crosshair touch-none border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {!hasDrawn && (
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-xs text-slate-400">
-                      Goreskan tanda tangan Anda dengan jari atau mouse di sini
+                      Goreskan tanda tangan dengan jari/mouse, atau klik opsi verifikasi nama di atas
                     </div>
                   )}
                 </div>

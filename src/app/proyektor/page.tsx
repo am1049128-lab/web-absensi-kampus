@@ -206,6 +206,7 @@ function ProyektorContent() {
           <button
             onClick={toggleFullscreen}
             title="Layar Penuh (F11)"
+            aria-label="Alihkan mode layar penuh"
             className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
           >
             {isFullscreen ? (

@@ -55,17 +55,17 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200/90 shadow-xl overflow-hidden">
           {/* Card Header */}
-          <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 text-white p-8 text-center relative overflow-hidden">
-            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center mx-auto mb-3 shadow-inner">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="bg-slate-900 text-white p-6 sm:p-8 text-center relative">
+            <div className="w-12 h-12 rounded-lg bg-indigo-900 text-indigo-200 flex items-center justify-center mx-auto mb-3 border border-indigo-700/50">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Portal Admin</h1>
-            <p className="text-indigo-100 text-xs sm:text-sm mt-1">
-              Masuk untuk mengelola kegiatan dan data absensi
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Portal Panitia Acara</h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">
+              Masuk untuk mengelola agenda dan rekap data presensi
             </p>
           </div>
 
@@ -131,7 +131,7 @@ export default function AdminLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full gradient-btn text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm disabled:opacity-50 transition-all"
+                className="w-full bg-indigo-900 hover:bg-indigo-800 text-white font-bold py-3 px-6 rounded-lg shadow-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 transition-colors"
               >
                 {loading ? "Memverifikasi..." : "Masuk ke Dashboard"}
               </button>

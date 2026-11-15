@@ -365,7 +365,7 @@ export default function AdminDashboard() {
 
         {/* TAB 1: ABSENSI */}
         {activeTab === "absensi" && (
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden">
             {/* Filter toolbar */}
             <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
               <div className="flex-1 flex flex-col sm:flex-row gap-3">
@@ -403,6 +403,7 @@ export default function AdminDashboard() {
                 <button
                   onClick={fetchData}
                   title="Segarkan data"
+                  aria-label="Segarkan data presensi"
                   className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   <svg className={`w-4 h-4 ${loading ? "animate-spin text-indigo-600" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -480,6 +481,7 @@ export default function AdminDashboard() {
                             onClick={() => deleteAbsensi(item.id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                             title="Hapus data"
+                            aria-label={`Hapus data presensi ${item.nama}`}
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -521,7 +523,7 @@ export default function AdminDashboard() {
 
             {/* Form Tambah Kegiatan */}
             {showForm && (
-              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-lg p-6 sm:p-8 mb-6 animate-fade-in-up">
+              <div className="bg-white rounded-xl border border-slate-200/90 shadow-lg p-6 sm:p-8 mb-6 animate-fade-in-up">
                 <h3 className="text-base font-bold text-slate-900 mb-4">Tambah Kegiatan Baru</h3>
                 <form onSubmit={handleAddKegiatan} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -600,14 +602,14 @@ export default function AdminDashboard() {
             {/* List of Kegiatan */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {kegiatanList.length === 0 ? (
-                <div className="col-span-full bg-white rounded-3xl p-12 text-center border border-slate-200 text-slate-400">
+                <div className="col-span-full bg-white rounded-xl p-12 text-center border border-slate-200 text-slate-400">
                   Belum ada kegiatan yang dibuat. Klik tombol &ldquo;Tambah Kegiatan&rdquo; di atas untuk memulai.
                 </div>
               ) : (
                 kegiatanList.map((k) => (
                   <div
                     key={k.id}
-                    className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 flex flex-col justify-between hover:shadow-md transition-shadow relative"
+                    className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-6 flex flex-col justify-between hover:shadow-md transition-shadow relative"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-3">
@@ -660,6 +662,7 @@ export default function AdminDashboard() {
                         <button
                           onClick={() => copyAbsenLink(k.id)}
                           title="Salin Link Presensi"
+                          aria-label={`Salin link presensi ${k.nama_kegiatan}`}
                           className="p-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
                         >
                           {copiedId === k.id ? (
@@ -688,6 +691,7 @@ export default function AdminDashboard() {
 
                         <button
                           onClick={() => deleteKegiatan(k.id)}
+                          aria-label={`Hapus kegiatan ${k.nama_kegiatan}`}
                           className="py-1.5 px-3 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
                         >
                           Hapus
