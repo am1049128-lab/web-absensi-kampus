@@ -12,6 +12,7 @@ interface Absensi {
   prodi: string;
   semester: number;
   waktu_absen: string;
+  kegiatan_id: string;
   kegiatan: {
     nama_kegiatan: string;
   };
@@ -35,6 +36,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const router = useRouter();
 
   // Form kegiatan baru
@@ -73,6 +75,7 @@ export default function AdminDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
       // Fetch kegiatan
       const { data: kData } = await supabase
         .from("kegiatan")
@@ -94,7 +97,7 @@ export default function AdminDashboard() {
       const { data: aData } = await query;
       setAbsensiList(aData || []);
     } catch (err) {
-      console.error("Error fetching data:", err);
+      console.error("Gagal mengambil data:", err);
     } finally {
       setLoading(false);
     }
@@ -145,10 +148,9 @@ export default function AdminDashboard() {
   }
 
   async function deleteKegiatan(id: string) {
-    if (!confirm("Yakin ingin menghapus kegiatan ini? Data absensi terkait juga akan terhapus.")) return;
+    if (!confirm("Yakin ingin menghapus kegiatan ini? Semua data absensi terkait acara ini juga akan dihapus.")) return;
 
     try {
-      // Delete related absensi first
       await supabase.from("absensi").delete().eq("kegiatan_id", id);
       const { error } = await supabase.from("kegiatan").delete().eq("id", id);
       if (error) throw error;
@@ -159,7 +161,7 @@ export default function AdminDashboard() {
   }
 
   async function deleteAbsensi(id: string) {
-    if (!confirm("Yakin ingin menghapus data absensi ini?")) return;
+    if (!confirm("Yakin ingin menghapus data absensi peserta ini?")) return;
 
     try {
       const { error } = await supabase.from("absensi").delete().eq("id", id);
@@ -175,6 +177,14 @@ export default function AdminDashboard() {
     router.push("/admin/login");
   }
 
+  function copyAbsenLink(kegiatanId: string) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/absensi?kegiatan_id=${kegiatanId}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(kegiatanId);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
   function exportCSV() {
     const filtered = filteredAbsensi();
     if (filtered.length === 0) {
@@ -182,48 +192,43 @@ export default function AdminDashboard() {
       return;
     }
 
-    const headers = ["No", "Nama", "NIM", "Prodi", "Semester", "Kegiatan", "Waktu Absen"];
+    const headers = ["No", "Nama Lengkap", "NIM", "Program Studi", "Semester", "Kegiatan", "Waktu Presensi"];
     const rows = filtered.map((a, i) => [
       i + 1,
-      a.nama,
-      a.nim,
-      a.prodi,
+      `"${a.nama.replace(/"/g, '""')}"`,
+      `"${a.nim}"`,
+      `"${a.prodi}"`,
       a.semester,
-      a.kegiatan?.nama_kegiatan || "-",
-      new Date(a.waktu_absen).toLocaleString("id-ID"),
+      `"${a.kegiatan?.nama_kegiatan || "-"}"`,
+      `"${new Date(a.waktu_absen).toLocaleString("id-ID")}"`,
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `absensi-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rekap-absensi-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
   }
 
   function filteredAbsensi() {
     return absensiList.filter((a) => {
-      const matchSearch =
+      const q = searchQuery.toLowerCase();
+      return (
         searchQuery === "" ||
-        a.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.nim.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.prodi.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchSearch;
+        a.nama.toLowerCase().includes(q) ||
+        a.nim.toLowerCase().includes(q) ||
+        a.prodi.toLowerCase().includes(q)
+      );
     });
   }
 
-  if (!authenticated || loading) {
+  if (!authenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted">
-          <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Memuat...
-        </div>
+      <div className="min-h-screen bg-mesh flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -231,110 +236,142 @@ export default function AdminDashboard() {
   const filtered = filteredAbsensi();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-primary text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-mesh font-sans selection:bg-indigo-500 selection:text-white">
+      {/* Top Navbar */}
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex items-center gap-3">
-              <Link href="/" className="hover:opacity-80 transition-opacity">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <Link href="/" className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </Link>
               <div>
-                <h1 className="text-xl font-bold">Admin Dashboard</h1>
-                <p className="text-blue-100 text-sm">Kelola absensi & kegiatan</p>
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">Dashboard Admin</h1>
+                <p className="text-xs text-slate-500">Kelola Presensi & Kegiatan Kampus</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/20"
-            >
-              Logout
-            </button>
+
+            <div className="flex items-center gap-2.5">
+              <Link
+                href="/proyektor"
+                target="_blank"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-700 transition-colors shadow-sm"
+              >
+                <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>📺 Mode Proyektor</span>
+              </Link>
+
+              <Link
+                href="/absensi"
+                target="_blank"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl border border-indigo-200 transition-colors"
+              >
+                <span>Buka Form Absen</span>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </Link>
+
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 rounded-xl border border-rose-200 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Keluar</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
+        {/* Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-card rounded-xl p-5 shadow-sm border border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary-light rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm text-muted">Total Absensi</p>
-                <p className="text-2xl font-bold text-foreground">{absensiList.length}</p>
-              </div>
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Kehadiran</p>
+              <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{absensiList.length}</p>
             </div>
           </div>
-          <div className="bg-card rounded-xl p-5 shadow-sm border border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-success-light rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm text-muted">Total Kegiatan</p>
-                <p className="text-2xl font-bold text-foreground">{kegiatanList.length}</p>
-              </div>
+
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Kegiatan</p>
+              <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{kegiatanList.length}</p>
             </div>
           </div>
-          <div className="bg-card rounded-xl p-5 shadow-sm border border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-warning-light rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm text-muted">Kegiatan Aktif</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {kegiatanList.filter((k) => k.is_active).length}
-                </p>
-              </div>
+
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Kegiatan Aktif</p>
+              <p className="text-2xl font-extrabold text-slate-900 mt-0.5">
+                {kegiatanList.filter((k) => k.is_active).length}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-card rounded-lg p-1 border border-border mb-6 w-fit">
+        {/* Tab Selector */}
+        <div className="flex items-center gap-2 mb-6 bg-slate-200/60 p-1 rounded-2xl w-fit">
           <button
             onClick={() => setActiveTab("absensi")}
-            className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
               activeTab === "absensi"
-                ? "bg-primary text-white shadow-sm"
-                : "text-muted hover:text-foreground"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            📋 Data Absensi
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <span>Daftar Presensi ({absensiList.length})</span>
           </button>
+
           <button
             onClick={() => setActiveTab("kegiatan")}
-            className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
               activeTab === "kegiatan"
-                ? "bg-primary text-white shadow-sm"
-                : "text-muted hover:text-foreground"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            📅 Kelola Kegiatan
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>Kelola Acara ({kegiatanList.length})</span>
           </button>
         </div>
 
-        {/* Tab Content: Absensi */}
+        {/* TAB 1: ABSENSI */}
         {activeTab === "absensi" && (
-          <div className="bg-card rounded-xl shadow-sm border border-border">
-            <div className="p-4 sm:p-6 border-b border-border">
-              <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search */}
-                <div className="flex-1 relative">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+            {/* Filter toolbar */}
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+              <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                {/* Search input */}
+                <div className="relative flex-1">
+                  <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                   <input
@@ -342,14 +379,15 @@ export default function AdminDashboard() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Cari nama, NIM, atau prodi..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder-muted focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
                   />
                 </div>
-                {/* Filter */}
+
+                {/* Event Filter dropdown */}
                 <select
                   value={selectedKegiatan}
                   onChange={(e) => setSelectedKegiatan(e.target.value)}
-                  className="px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                  className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
                 >
                   <option value="all">Semua Kegiatan</option>
                   {kegiatanList.map((k) => (
@@ -358,70 +396,92 @@ export default function AdminDashboard() {
                     </option>
                   ))}
                 </select>
-                {/* Export */}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchData}
+                  title="Segarkan data"
+                  className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  <svg className={`w-4 h-4 ${loading ? "animate-spin text-indigo-600" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+
                 <button
                   onClick={exportCSV}
-                  className="bg-success hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-xl shadow-sm transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Export CSV
+                  <span>Export CSV</span>
                 </button>
               </div>
             </div>
 
             {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-background">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">No</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">Nama</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">NIM</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">Prodi</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">Semester</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">Kegiatan</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">Waktu</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase">Aksi</th>
+                  <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <th className="py-3.5 px-4">No</th>
+                    <th className="py-3.5 px-4">Nama Lengkap</th>
+                    <th className="py-3.5 px-4">NIM</th>
+                    <th className="py-3.5 px-4">Program Studi</th>
+                    <th className="py-3.5 px-4">Semester</th>
+                    <th className="py-3.5 px-4">Kegiatan</th>
+                    <th className="py-3.5 px-4">Waktu</th>
+                    <th className="py-3.5 px-4 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.length === 0 ? (
+                <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                  {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center text-muted">
-                        {searchQuery ? "Tidak ada data yang cocok." : "Belum ada data absensi."}
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <div className="inline-block w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                        <p>Memuat data presensi...</p>
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                        {searchQuery ? "Tidak ditemukan data yang sesuai kata kunci pencarian." : "Belum ada data presensi yang masuk."}
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((a, i) => (
-                      <tr key={a.id} className="hover:bg-background/50 transition-colors">
-                        <td className="px-4 py-3 text-sm">{i + 1}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{a.nama}</td>
-                        <td className="px-4 py-3 text-sm font-mono">{a.nim}</td>
-                        <td className="px-4 py-3 text-sm">{a.prodi}</td>
-                        <td className="px-4 py-3 text-sm text-center">{a.semester}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className="bg-primary-light text-primary px-2 py-1 rounded-md text-xs font-medium">
-                            {a.kegiatan?.nama_kegiatan || "-"}
+                    filtered.map((item, idx) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-4 font-mono text-slate-400 text-xs">{idx + 1}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">{item.nama}</td>
+                        <td className="py-3.5 px-4 font-mono text-indigo-600 font-semibold">{item.nim}</td>
+                        <td className="py-3.5 px-4 text-slate-600">{item.prodi}</td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                            Smtr {item.semester}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted">
-                          {new Date(a.waktu_absen).toLocaleString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
+                        <td className="py-3.5 px-4">
+                          <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {item.kegiatan?.nama_kegiatan || "-"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
+                          {new Date(item.waktu_absen).toLocaleTimeString("id-ID", {
                             hour: "2-digit",
                             minute: "2-digit",
-                          })}
+                          })}{" "}
+                          WIB
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="py-3.5 px-4 text-center">
                           <button
-                            onClick={() => deleteAbsensi(a.id)}
-                            className="text-danger hover:text-red-800 transition-colors"
-                            title="Hapus"
+                            onClick={() => deleteAbsensi(item.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Hapus data"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
@@ -433,150 +493,206 @@ export default function AdminDashboard() {
               </table>
             </div>
 
-            <div className="px-4 py-3 border-t border-border text-sm text-muted">
-              Menampilkan {filtered.length} dari {absensiList.length} data
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+              <span>Menampilkan {filtered.length} dari {absensiList.length} data</span>
             </div>
           </div>
         )}
 
-        {/* Tab Content: Kegiatan */}
+        {/* TAB 2: KEGIATAN */}
         {activeTab === "kegiatan" && (
           <div>
-            {/* Add Kegiatan Button */}
-            <div className="mb-4">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Daftar Kegiatan Kampus</h2>
+                <p className="text-xs text-slate-500">Kelola kegiatan yang dibuka untuk formulir absensi pengunjung</p>
+              </div>
+
               <button
                 onClick={() => setShowForm(!showForm)}
-                className="bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-white gradient-btn px-4 py-2.5 rounded-xl shadow-md transition-all"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
-                Tambah Kegiatan
+                <span>{showForm ? "Tutup Form" : "Tambah Kegiatan"}</span>
               </button>
             </div>
 
-            {/* Add Kegiatan Form */}
+            {/* Form Tambah Kegiatan */}
             {showForm && (
-              <div className="bg-card rounded-xl shadow-sm border border-border p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-4">Tambah Kegiatan Baru</h3>
+              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-lg p-6 sm:p-8 mb-6 animate-fade-in-up">
+                <h3 className="text-base font-bold text-slate-900 mb-4">Tambah Kegiatan Baru</h3>
                 <form onSubmit={handleAddKegiatan} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Nama Kegiatan *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Nama Kegiatan <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formKegiatan.nama_kegiatan}
                       onChange={(e) => setFormKegiatan({ ...formKegiatan, nama_kegiatan: e.target.value })}
-                      placeholder="Contoh: Seminar Nasional IT"
-                      className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                      placeholder="Contoh: Seminar Nasional AI & Cloud 2026"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                       required
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Tanggal *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Tanggal Pelaksanaan <span className="text-rose-500">*</span>
+                    </label>
                     <input
                       type="date"
                       value={formKegiatan.tanggal}
                       onChange={(e) => setFormKegiatan({ ...formKegiatan, tanggal: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                       required
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Lokasi</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Lokasi / Ruangan
+                    </label>
                     <input
                       type="text"
                       value={formKegiatan.lokasi}
                       onChange={(e) => setFormKegiatan({ ...formKegiatan, lokasi: e.target.value })}
-                      placeholder="Contoh: Aula Kampus Utama"
-                      className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                      placeholder="Contoh: Auditorium Gedung B Lt. 4"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Deskripsi</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Deskripsi Singkat
+                    </label>
                     <input
                       type="text"
                       value={formKegiatan.deskripsi}
                       onChange={(e) => setFormKegiatan({ ...formKegiatan, deskripsi: e.target.value })}
-                      placeholder="Deskripsi singkat kegiatan"
-                      className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                      placeholder="Keterangan singkat acara..."
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                     />
                   </div>
-                  <div className="sm:col-span-2 flex gap-3">
-                    <button
-                      type="submit"
-                      disabled={formLoading}
-                      className="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
-                    >
-                      {formLoading ? "Menyimpan..." : "Simpan"}
-                    </button>
+
+                  <div className="sm:col-span-2 flex items-center justify-end gap-2.5 mt-2">
                     <button
                       type="button"
                       onClick={() => setShowForm(false)}
-                      className="bg-background hover:bg-border text-foreground px-6 py-2.5 rounded-lg font-medium transition-colors border border-border"
+                      className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                     >
                       Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={formLoading}
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-white gradient-btn shadow-md disabled:opacity-50 transition-all"
+                    >
+                      {formLoading ? "Menyimpan..." : "Simpan Kegiatan"}
                     </button>
                   </div>
                 </form>
               </div>
             )}
 
-            {/* Kegiatan List */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* List of Kegiatan */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {kegiatanList.length === 0 ? (
-                <div className="sm:col-span-2 lg:col-span-3 bg-card rounded-xl border border-border p-12 text-center text-muted">
-                  Belum ada kegiatan. Klik &quot;Tambah Kegiatan&quot; untuk memulai.
+                <div className="col-span-full bg-white rounded-3xl p-12 text-center border border-slate-200 text-slate-400">
+                  Belum ada kegiatan yang dibuat. Klik tombol &ldquo;Tambah Kegiatan&rdquo; di atas untuk memulai.
                 </div>
               ) : (
                 kegiatanList.map((k) => (
                   <div
                     key={k.id}
-                    className="bg-card rounded-xl shadow-sm border border-border p-5 hover:shadow-md transition-shadow"
+                    className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 flex flex-col justify-between hover:shadow-md transition-shadow relative"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-semibold text-foreground">{k.nama_kegiatan}</h3>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          k.is_active
-                            ? "bg-success-light text-success"
-                            : "bg-danger-light text-danger"
-                        }`}
-                      >
-                        {k.is_active ? "Aktif" : "Nonaktif"}
-                      </span>
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            k.is_active
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-slate-100 text-slate-500 border border-slate-200"
+                          }`}
+                        >
+                          {k.is_active ? "● Aktif (Buka Absensi)" : "○ Nonaktif (Tutup)"}
+                        </span>
+
+                        <span className="text-xs text-slate-400 font-medium">
+                          {new Date(k.tanggal).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-slate-900 line-clamp-1">{k.nama_kegiatan}</h3>
+                      {k.deskripsi && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{k.deskripsi}</p>}
+
+                      {k.lokasi && (
+                        <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                          <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          </svg>
+                          <span className="truncate">{k.lokasi}</span>
+                        </div>
+                      )}
                     </div>
-                    {k.deskripsi && (
-                      <p className="text-sm text-muted mb-2">{k.deskripsi}</p>
-                    )}
-                    <div className="text-sm text-muted space-y-1 mb-4">
-                      <p>
-                        📅{" "}
-                        {new Date(k.tanggal).toLocaleDateString("id-ID", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                      {k.lokasi && <p>📍 {k.lokasi}</p>}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => toggleKegiatanStatus(k.id, k.is_active)}
-                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          k.is_active
-                            ? "bg-warning-light text-warning hover:bg-yellow-200"
-                            : "bg-success-light text-success hover:bg-green-200"
-                        }`}
-                      >
-                        {k.is_active ? "Nonaktifkan" : "Aktifkan"}
-                      </button>
-                      <button
-                        onClick={() => deleteKegiatan(k.id)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-danger-light text-danger hover:bg-red-200 transition-colors"
-                      >
-                        Hapus
-                      </button>
+
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                      {/* Projector and copy buttons */}
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/proyektor?kegiatan_id=${k.id}`}
+                          target="_blank"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          <span>Layar Proyektor</span>
+                        </Link>
+
+                        <button
+                          onClick={() => copyAbsenLink(k.id)}
+                          title="Salin Link Presensi"
+                          className="p-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                        >
+                          {copiedId === k.id ? (
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleKegiatanStatus(k.id, k.is_active)}
+                          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors ${
+                            k.is_active
+                              ? "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                          }`}
+                        >
+                          {k.is_active ? "Tutup Absensi" : "Buka Absensi"}
+                        </button>
+
+                        <button
+                          onClick={() => deleteKegiatan(k.id)}
+                          className="py-1.5 px-3 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
+                        >
+                          Hapus
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -588,4 +704,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
