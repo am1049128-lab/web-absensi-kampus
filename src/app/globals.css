@@ -76,6 +76,7 @@ select:disabled {
 
 /* Reduced motion preference (R-39) */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -226,32 +227,49 @@ select:disabled {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Print utilities for E-Ticket */
+/* Print utilities for E-Ticket & Berita Acara Presensi (Fitur 1) */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 15mm 12mm;
+  }
+
   body {
     background: #ffffff !important;
+    color: #000000 !important;
   }
+
   .no-print {
     display: none !important;
   }
+
   .print-only {
     display: block !important;
   }
+
   .print-ticket {
     border: 1px solid #cbd5e1 !important;
     box-shadow: none !important;
     max-width: 100% !important;
     margin: 0 auto !important;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 }

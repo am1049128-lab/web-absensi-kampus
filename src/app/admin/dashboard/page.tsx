@@ -31,7 +31,7 @@ interface Kegiatan {
 export default function AdminDashboard() {
   const [absensiList, setAbsensiList] = useState<Absensi[]>([]);
   const [kegiatanList, setKegiatanList] = useState<Kegiatan[]>([]);
-  const [activeTab, setActiveTab] = useState<"absensi" | "kegiatan">("absensi");
+  const [activeTab, setActiveTab] = useState<"absensi" | "demografi" | "kegiatan">("absensi");
   const [selectedKegiatan, setSelectedKegiatan] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -235,6 +235,49 @@ export default function AdminDashboard() {
 
   const filtered = filteredAbsensi();
 
+  // Demographic Analytics Calculations (Fitur 4)
+  const demoTotal = absensiList.length;
+
+  const prodiStats = absensiList.reduce((acc, curr) => {
+    const p = curr.prodi || "Lainnya";
+    acc[p] = (acc[p] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const sortedProdiList = Object.entries(prodiStats)
+    .map(([prodi, count]) => ({
+      prodi,
+      count,
+      percentage: demoTotal > 0 ? Math.round((count / demoTotal) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const semesterStats = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => {
+    const count = absensiList.filter((a) => Number(a.semester) === s).length;
+    return {
+      semester: s,
+      count,
+      percentage: demoTotal > 0 ? Math.round((count / demoTotal) * 100) : 0,
+    };
+  });
+
+  const maxSemesterCount = Math.max(...semesterStats.map((s) => s.count), 1);
+  const topProdi = sortedProdiList[0] || null;
+  const topSemester = [...semesterStats].sort((a, b) => b.count - a.count)[0] || null;
+
+  const arrivalStats = absensiList.reduce(
+    (acc, curr) => {
+      const date = new Date(curr.waktu_absen);
+      const hour = date.getHours();
+      if (hour < 11) acc.pagi += 1;
+      else if (hour < 15) acc.siang += 1;
+      else if (hour < 18) acc.sore += 1;
+      else acc.malam += 1;
+      return acc;
+    },
+    { pagi: 0, siang: 0, sore: 0, malam: 0 }
+  );
+
   return (
     <div className="min-h-screen bg-mesh font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Navbar */}
@@ -333,7 +376,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tab Selector */}
-        <div className="flex items-center gap-2 mb-6 bg-slate-200/60 p-1 rounded-2xl w-fit">
+        <div className="flex flex-wrap items-center gap-2 mb-6 bg-slate-200/60 p-1 rounded-2xl w-fit">
           <button
             onClick={() => setActiveTab("absensi")}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
@@ -346,6 +389,20 @@ export default function AdminDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
             </svg>
             <span>Daftar Presensi ({absensiList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("demografi")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+              activeTab === "demografi"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Grafik & Demografi</span>
           </button>
 
           <button
@@ -404,16 +461,27 @@ export default function AdminDashboard() {
                   onClick={fetchData}
                   title="Segarkan data"
                   aria-label="Segarkan data presensi"
-                  className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                  className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors btn-interactive"
                 >
                   <svg className={`w-4 h-4 ${loading ? "animate-spin text-indigo-600" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </button>
 
+                <Link
+                  href={selectedKegiatan === "all" ? "/admin/laporan" : `/admin/laporan?kegiatan_id=${selectedKegiatan}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-300 transition-colors btn-interactive"
+                >
+                  <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  <span>Cetak Berita Acara</span>
+                </Link>
+
                 <button
                   onClick={exportCSV}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-xl shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-xl shadow-sm transition-colors btn-interactive"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -501,7 +569,201 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 2: KEGIATAN */}
+        {/* TAB 2: DEMOGRAFI & ANALYTICS */}
+        {activeTab === "demografi" && (
+          <div className="space-y-6 animate-fade-in-up">
+            {/* Filter toolbar */}
+            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Demografi & Analisis Kehadiran Mahasiswa</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Visualisasi sebaran peserta berdasarkan program studi, tingkat semester, dan waktu check-in.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedKegiatan}
+                  onChange={(e) => setSelectedKegiatan(e.target.value)}
+                  className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 cursor-pointer"
+                >
+                  <option value="all">Semua Kegiatan</option>
+                  {kegiatanList.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.nama_kegiatan}
+                    </option>
+                  ))}
+                </select>
+
+                <Link
+                  href={selectedKegiatan === "all" ? "/admin/laporan" : `/admin/laporan?kegiatan_id=${selectedKegiatan}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-900 hover:bg-indigo-800 px-3.5 py-2 rounded-xl shadow-sm transition-colors btn-interactive"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  <span>Cetak Berita Acara</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Top 3 Metric Highlight Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm card-interactive">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Mahasiswa Hadir</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-extrabold text-slate-900">{demoTotal}</span>
+                  <span className="text-xs font-medium text-slate-500">Orang</span>
+                </div>
+                <span className="text-[11px] text-slate-400 mt-2 block">
+                  {selectedKegiatan === "all" ? "Akumulasi seluruh kegiatan" : "Kegiatan yang difilter"}
+                </span>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm card-interactive">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Program Studi Terbanyak</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-extrabold text-indigo-900 truncate">
+                    {topProdi ? topProdi.prodi : "-"}
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-emerald-600 mt-2 block">
+                  {topProdi ? `${topProdi.count} Mahasiswa (${topProdi.percentage}%)` : "Belum ada data"}
+                </span>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm card-interactive">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Tingkat Semester Terbanyak</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-extrabold text-indigo-900">
+                    {topSemester && topSemester.count > 0 ? `Semester ${topSemester.semester}` : "-"}
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-emerald-600 mt-2 block">
+                  {topSemester && topSemester.count > 0 ? `${topSemester.count} Mahasiswa (${topSemester.percentage}%)` : "Belum ada data"}
+                </span>
+              </div>
+            </div>
+
+            {/* 2 Main Visual Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Chart 1: Program Studi Breakdown */}
+              <div className="lg:col-span-7 bg-white rounded-xl border border-slate-200/90 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                      Sebaran Mahasiswa per Program Studi
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Proporsi kehadiran dari masing-masing jurusan</p>
+                  </div>
+                  <span className="text-xs font-bold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                    {sortedProdiList.length} Prodi
+                  </span>
+                </div>
+
+                {sortedProdiList.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs italic">
+                    Belum ada data kehadiran untuk dianalisis.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {sortedProdiList.map((item, idx) => (
+                      <div key={item.prodi} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-800 flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-mono font-bold">
+                              {idx + 1}
+                            </span>
+                            {item.prodi}
+                          </span>
+                          <span className="text-slate-600 font-medium font-mono">
+                            {item.count} mhs <span className="text-slate-400">({item.percentage}%)</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-indigo-900 to-indigo-600 h-full rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${item.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Chart 2: Semester 1-8 Breakdown */}
+              <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200/90 shadow-sm p-6 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                        Sebaran Tingkat Semester
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Partisipasi per semester (1 sampai 8)</p>
+                    </div>
+                  </div>
+
+                  {demoTotal === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs italic">
+                      Belum ada data kehadiran untuk dianalisis.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 items-end pt-8 pb-4 h-48 border-b border-slate-100">
+                      {semesterStats.map((item) => {
+                        const heightPx = Math.max(12, Math.round((item.count / maxSemesterCount) * 110));
+                        return (
+                          <div key={item.semester} className="flex flex-col items-center gap-2 group">
+                            <span className="text-[11px] font-mono font-bold text-slate-700 group-hover:text-indigo-900 transition-colors">
+                              {item.count}
+                            </span>
+                            <div className="w-full max-w-[28px] bg-slate-100 rounded-t-lg overflow-hidden flex items-end justify-center h-28">
+                              <div
+                                className="w-full bg-gradient-to-t from-indigo-900 via-indigo-700 to-sky-500 rounded-t-lg transition-all duration-700 ease-out group-hover:opacity-90"
+                                style={{ height: `${item.count > 0 ? heightPx : 4}px` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase mt-1">
+                              S{item.semester}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Arrival Time Quick Breakdown */}
+                <div className="mt-6 pt-4 border-t border-slate-100">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                    Waktu Check-in Peserta
+                  </span>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <span className="text-[10px] text-slate-400 block">Pagi (&lt;11:00)</span>
+                      <span className="text-xs font-bold text-slate-800">{arrivalStats.pagi}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <span className="text-[10px] text-slate-400 block">Siang (11-15)</span>
+                      <span className="text-xs font-bold text-slate-800">{arrivalStats.siang}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <span className="text-[10px] text-slate-400 block">Sore (15-18)</span>
+                      <span className="text-xs font-bold text-slate-800">{arrivalStats.sore}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <span className="text-[10px] text-slate-400 block">Malam (&gt;18:00)</span>
+                      <span className="text-xs font-bold text-slate-800">{arrivalStats.malam}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: KEGIATAN */}
         {activeTab === "kegiatan" && (
           <div>
             <div className="flex items-center justify-between mb-6">
@@ -646,7 +908,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                      {/* Projector and copy buttons */}
+                      {/* Projector, print, and copy buttons */}
                       <div className="flex gap-2">
                         <Link
                           href={`/proyektor?kegiatan_id=${k.id}`}
@@ -657,6 +919,18 @@ export default function AdminDashboard() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
                           <span>Layar Proyektor</span>
+                        </Link>
+
+                        <Link
+                          href={`/admin/laporan?kegiatan_id=${k.id}`}
+                          target="_blank"
+                          title="Cetak Berita Acara Presensi"
+                          aria-label={`Cetak berita acara kegiatan ${k.nama_kegiatan}`}
+                          className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                          <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          </svg>
                         </Link>
 
                         <button
